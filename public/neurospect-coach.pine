@@ -1,0 +1,180 @@
+// =============================================================================
+// Neurospect AI Trading Coach — TradingView alert bridge
+// =============================================================================
+// Install on an NQ (or other) chart. Set the shared secret + user token below.
+// Create one alert on this indicator with the webhook URL built from your
+// token. Flip `Request coaching` to fire a single coaching request.
+// -----------------------------------------------------------------------------
+//   Webhook URL: https://<host>/webhooks/tradingview/<your_user_token>
+//   Alert condition: pick "neurospect-coach" from the "Condition" dropdown
+//   Message field: leave as "{}"  — the body is supplied by alert() directly
+//   Notifications tab: enable Webhook URL
+// -----------------------------------------------------------------------------
+// Version: 1.0   —   matches Layer 2 schema in
+//   neurospect-wiki/processes/distributed-workflow/active/ai-coach.md
+// =============================================================================
+
+//@version=5
+indicator("Neurospect Coach", overlay=true)
+
+// ---- Inputs -----------------------------------------------------------------
+
+grpSec  = "Credentials"
+tvSecret = input.string("", "Webhook shared secret", group=grpSec, confirm=true,
+     tooltip="Must match TRADINGVIEW_WEBHOOK_SECRET on the backend.")
+
+grpTrig = "Trigger"
+requestCoaching = input.bool(false, "Request coaching (rising edge fires alert)",
+     group=grpTrig,
+     tooltip="Flip OFF→ON to request one coaching call. Flip back to arm again.")
+
+grpFvg  = "HTF FVG"
+fvgOverride = input.bool(false, "Manual FVG override", group=grpFvg,
+     tooltip="If true, use the three inputs below instead of auto-detection.")
+fvgBiasIn = input.string("bullish", "Manual FVG bias",
+     options=["bullish","bearish","neutral"], group=grpFvg)
+fvgLowIn  = input.float(0.0, "Manual FVG low",  group=grpFvg)
+fvgHighIn = input.float(0.0, "Manual FVG high", group=grpFvg)
+
+grpCtx  = "Context"
+newsFlagIn = input.bool(false, "News flag (FOMC/CPI/NFP today)", group=grpCtx)
+structureNoteIn = input.string("", "Structure note (optional)", group=grpCtx,
+     tooltip="Free-text observation passed through to the coach.")
+
+// ---- Session detection (America/New_York) ----------------------------------
+// Pine's hour/minute respect the chart's timezone. Normalise to ET.
+
+hourET   = hour(time, "America/New_York")
+minuteET = minute(time, "America/New_York")
+tod      = hourET * 60 + minuteET   // minutes past midnight ET
+
+isLondon = tod >= 120  and tod < 300     // 02:00-05:00
+isNyAm   = tod >= 510  and tod < 690     // 08:30-11:30
+isNyPm   = tod >= 810  and tod < 960     // 13:30-16:00
+session  = isLondon ? "london" : isNyAm ? "ny_am" : isNyPm ? "ny_pm" : "off"
+
+// ---- Opening-price tracking (midnight, 08:30, 09:30 ET) --------------------
+// Each bar: if it is the bar that opens the reference minute (UTC-aligned to
+// ET), snapshot that bar's open. `ta.valuewhen` keeps the last snapshot alive.
+
+isMidnightBar = hourET == 0  and minuteET == 0
+is0830Bar     = hourET == 8  and minuteET == 30
+is0930Bar     = hourET == 9  and minuteET == 30
+
+var float _midOpen  = na
+var float _open0830 = na
+var float _open0930 = na
+
+if isMidnightBar
+    _midOpen  := open
+if is0830Bar
+    _open0830 := open
+if is0930Bar
+    _open0930 := open
+
+priceVsMid = na(_midOpen) ? "na" : close < _midOpen ? "below" :
+     close > _midOpen ? "above" : "at"
+
+// ---- 4H FVG auto-detection --------------------------------------------------
+// Three-candle FVG: bullish when candle[0].high < candle[2].low (gap left open
+// between them, referenced by the middle candle). On each new 4H bar close we
+// test the most recent completed trio and update the stored FVG.
+
+detect4hFvg() =>
+    // At confirmed bar close, compare candles indexed 1, 2, 3 (so the middle
+    // candle is the one that just finished two bars ago on the 4H TF).
+    var float lastLow   = na
+    var float lastHigh  = na
+    var string lastBias = "neutral"
+    gapUp   = low[1] > high[3]
+    gapDown = high[1] < low[3]
+    if barstate.isconfirmed
+        if gapUp
+            lastLow   := high[3]
+            lastHigh  := low[1]
+            lastBias  := "bullish"
+        else if gapDown
+            lastLow   := high[1]
+            lastHigh  := low[3]
+            lastBias  := "bearish"
+    [lastLow, lastHigh, lastBias]
+
+[autoFvgLow, autoFvgHigh, autoFvgBias] =
+     request.security(syminfo.tickerid, "240", detect4hFvg(), lookahead=barmerge.lookahead_off)
+
+fvgBias = fvgOverride ? fvgBiasIn : autoFvgBias
+fvgLow  = fvgOverride ? fvgLowIn  : autoFvgLow
+fvgHigh = fvgOverride ? fvgHighIn : autoFvgHigh
+
+// ---- ISO-8601 timestamp -----------------------------------------------------
+
+yy = year(time, "UTC")
+mo = month(time, "UTC")
+dd = dayofmonth(time, "UTC")
+hh = hour(time, "UTC")
+mm = minute(time, "UTC")
+ss = second(time, "UTC")
+pad(x) => (x < 10 ? "0" : "") + str.tostring(x)
+isoTs = str.tostring(yy) + "-" + pad(mo) + "-" + pad(dd) + "T" +
+     pad(hh) + ":" + pad(mm) + ":" + pad(ss) + "Z"
+
+// ---- Helpers: JSON encoding ------------------------------------------------
+
+q(v)  => "\"" + v + "\""
+nStr(x) => na(x) ? "null" : str.tostring(x, "#.####")
+bStr(x) => x ? "true" : "false"
+// Light escape for double-quotes + backslashes in freetext strings.
+esc(s) => str.replace_all(str.replace_all(s, "\\", "\\\\"), "\"", "\\\"")
+
+idempotencyKey = syminfo.ticker + ":" + str.tostring(time) + ":" +
+     str.tostring(bar_index)
+
+// ---- Build payload (Layer 2 schema) ----------------------------------------
+
+body = "{" +
+     q("secret")                + ":" + q(tvSecret) + "," +
+     q("idempotency_key")       + ":" + q(idempotencyKey) + "," +
+     q("instrument")            + ":" + q(syminfo.ticker) + "," +
+     q("timestamp")             + ":" + q(isoTs) + "," +
+     q("session")               + ":" + q(session) + "," +
+     q("open")                  + ":" + nStr(open) + "," +
+     q("high")                  + ":" + nStr(high) + "," +
+     q("low")                   + ":" + nStr(low) + "," +
+     q("close")                 + ":" + nStr(close) + "," +
+     q("midnight_open")         + ":" + nStr(_midOpen) + "," +
+     q("open_830")              + ":" + nStr(_open0830) + "," +
+     q("open_930")              + ":" + nStr(_open0930) + "," +
+     q("htf_fvg_bias")          + ":" + q(fvgBias) + "," +
+     q("htf_fvg_range")         + ":[" + nStr(fvgLow) + "," + nStr(fvgHigh) + "]," +
+     q("price_vs_midnight_open")+ ":" + q(priceVsMid) + "," +
+     q("news_flag")             + ":" + bStr(newsFlagIn) + "," +
+     q("structure_note")        + ":" + q(esc(structureNoteIn)) + "," +
+     q("fvg_source")            + ":" + q(fvgOverride ? "manual" : "auto") +
+     "}"
+
+// ---- Rising-edge trigger + alert -------------------------------------------
+
+var bool prevRequest = false
+fire = requestCoaching and not prevRequest
+prevRequest := requestCoaching
+
+if fire
+    alert(body, alert.freq_once_per_bar)
+
+// ---- Visual plots so the indicator is debuggable on-chart ------------------
+
+plot(_midOpen,  "Midnight open", color=color.new(color.yellow, 0), style=plot.style_line)
+plot(_open0830, "08:30 open",    color=color.new(color.aqua,   0), style=plot.style_line)
+plot(_open0930, "09:30 open",    color=color.new(color.fuchsia,0), style=plot.style_line)
+
+// FVG band — drawn only when the fvgLow/fvgHigh pair is populated.
+hlineBand = not na(fvgLow) and not na(fvgHigh) and fvgLow != 0 and fvgHigh != 0
+plot(hlineBand ? fvgLow  : na, "FVG low",  color=color.new(color.green, 50))
+plot(hlineBand ? fvgHigh : na, "FVG high", color=color.new(color.green, 50))
+
+// Barcolor marker on the bar that fires an alert — visual sanity check.
+bgcolor(fire ? color.new(color.orange, 80) : na, title="Coach fire")
+
+// =============================================================================
+// End of file
+// =============================================================================
