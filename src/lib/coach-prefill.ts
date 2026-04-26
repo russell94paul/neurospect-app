@@ -80,20 +80,27 @@ export function extractPrefill(event: CoachingEvent | null, now: Date): PrefillR
   return { values, expandAdvanced, fieldNames };
 }
 
+export interface TradeCreateFromEventResult {
+  create: TradeCreate;
+  fieldNames: (keyof TradeFormValues)[];
+}
+
 /** Builds a TradeCreate body from a completed coach event's request_payload.
  *  No session-match check — caller has explicitly chosen to start a trade. */
-export function buildTradeCreateFromEvent(event: CoachingEvent): TradeCreate {
+export function buildTradeCreateFromEvent(event: CoachingEvent): TradeCreateFromEventResult {
   const payload = event.request_payload;
+  const fieldNames: (keyof TradeFormValues)[] = [];
 
-  const instrument =
-    typeof payload.instrument === 'string' && payload.instrument
-      ? payload.instrument
-      : 'NQ';
+  const instrumentFromPayload = typeof payload.instrument === 'string' && payload.instrument
+    ? payload.instrument : null;
+  const instrument = instrumentFromPayload ?? 'NQ';
 
   const create: TradeCreate = {
     trade_date: format(new Date(), 'yyyy-MM-dd'),
     instrument,
   };
+
+  if (instrumentFromPayload) fieldNames.push('instrument');
 
   const validSessions = ['asia', 'london', 'ny_am', 'ny_pm'] as const;
   if (
@@ -101,6 +108,7 @@ export function buildTradeCreateFromEvent(event: CoachingEvent): TradeCreate {
     validSessions.includes(payload.session as (typeof validSessions)[number])
   ) {
     create.session = payload.session as TradeCreate['session'];
+    fieldNames.push('session');
   }
 
   const validBiases = ['bullish', 'bearish', 'neutral'] as const;
@@ -109,18 +117,20 @@ export function buildTradeCreateFromEvent(event: CoachingEvent): TradeCreate {
     validBiases.includes(payload.htf_fvg_bias as (typeof validBiases)[number])
   ) {
     create.htf_bias = payload.htf_fvg_bias as TradeCreate['htf_bias'];
+    fieldNames.push('htf_bias');
   }
 
   if (Array.isArray(payload.htf_fvg_range) && payload.htf_fvg_range.length >= 2) {
     const low = payload.htf_fvg_range[0];
     const high = payload.htf_fvg_range[1];
-    if (typeof low === 'number') create.htf_fvg_low = low;
-    if (typeof high === 'number') create.htf_fvg_high = high;
+    if (typeof low === 'number') { create.htf_fvg_low = low; fieldNames.push('htf_fvg_low'); }
+    if (typeof high === 'number') { create.htf_fvg_high = high; fieldNames.push('htf_fvg_high'); }
   }
 
   if (typeof payload.news_flag === 'boolean') {
     create.news_flag = payload.news_flag;
+    fieldNames.push('news_flag');
   }
 
-  return create;
+  return { create, fieldNames };
 }

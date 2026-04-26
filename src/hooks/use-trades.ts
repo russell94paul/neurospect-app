@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
@@ -37,15 +38,18 @@ export function useTrade(id: string | undefined) {
   });
 }
 
-export function useCreateTrade() {
+export function useCreateTrade(navState?: Record<string, unknown>) {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const navStateRef = useRef(navState);
+  navStateRef.current = navState;
   return useMutation({
     mutationFn: (body: TradeCreate) =>
       api.post('api/trades', { json: body }).json<Trade>(),
     onSuccess: (trade) => {
       qc.invalidateQueries({ queryKey: ['trades'] });
-      navigate(`/trades/${trade.id}`);
+      const state = navStateRef.current;
+      navigate(`/trades/${trade.id}`, state != null ? { state } : undefined);
     },
   });
 }

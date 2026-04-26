@@ -3,6 +3,7 @@ import { type Control, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { Trash2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { extractPrefill } from '@/lib/coach-prefill';
 import { useLatestCoachingEvent } from '@/hooks/use-coaching';
 import { z } from 'zod';
@@ -198,7 +199,7 @@ export function TradeForm({ trade, onSuccess }: Props) {
   const updateTrade = useUpdateTrade(trade?.id ?? '');
   const deleteTrade = useDeleteTrade();
 
-  // Coach pre-fill (create mode only)
+  // Coach pre-fill — create mode: poll latest event and reset form fields
   const [prefilledFieldNames, setPrefilledFieldNames] = useState<(keyof TradeFormValues)[]>([]);
   const [expandAdvanced, setExpandAdvanced] = useState(false);
   const [bannerActive, setBannerActive] = useState(false);
@@ -215,9 +216,28 @@ export function TradeForm({ trade, onSuccess }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coachQuery.data]);
 
-  const showBanner = bannerActive && !isEdit;
+  // Coach pre-fill — edit mode: arrived via "Start Trade from Signal" navigation
+  const { state: locationState } = useLocation();
+  const coachNav = (locationState as { coachPrefilled?: boolean; fieldNames?: (keyof TradeFormValues)[] } | null);
+  const [coachNavDismissed, setCoachNavDismissed] = useState(false);
+  const showCoachNav = isEdit && !coachNavDismissed && coachNav?.coachPrefilled === true;
+
+  // Unified banner/highlight values across both modes
+  const showBanner = showCoachNav || (bannerActive && !isEdit);
+  const activePrefillFieldNames = showCoachNav
+    ? (coachNav?.fieldNames ?? [])
+    : (bannerActive ? prefilledFieldNames : []);
+  const defaultAdvancedOpen = expandAdvanced ||
+    (showCoachNav && (coachNav?.fieldNames ?? []).some((f) => f === 'htf_fvg_low' || f === 'htf_fvg_high'));
+
+  // Use a ref so the PreTradeFields key is stable in edit+coach mode (no remount needed)
+  const preTradeKey = isEdit ? 'edit' : String(expandAdvanced);
 
   const handleClearPrefill = () => {
+    if (showCoachNav) {
+      setCoachNavDismissed(true);
+      return;
+    }
     const baseDefaults: Partial<TradeFormValues> = {
       instrument: 'NQ',
       session: null,
@@ -234,6 +254,7 @@ export function TradeForm({ trade, onSuccess }: Props) {
     setExpandAdvanced(false);
     setBannerActive(false);
   };
+
 
   // R-multiple auto-calculation
   const [entryPrice, stopPrice, exitPrice] = form.watch(['entry_price', 'stop_price', 'exit_price']);
@@ -314,15 +335,15 @@ export function TradeForm({ trade, onSuccess }: Props) {
               <div className="flex flex-col gap-4">
                 {showBanner && (
                   <CoachPrefillBanner
-                    fieldNames={prefilledFieldNames}
+                    fieldNames={activePrefillFieldNames}
                     onClear={handleClearPrefill}
                   />
                 )}
                 <PreTradeFields
                   control={ctrl}
-                  defaultAdvancedOpen={expandAdvanced}
-                  prefilledFields={showBanner ? new Set(prefilledFieldNames) : undefined}
-                  key={String(expandAdvanced)}
+                  defaultAdvancedOpen={defaultAdvancedOpen}
+                  prefilledFields={showBanner ? new Set(activePrefillFieldNames) : undefined}
+                  key={preTradeKey}
                 />
               </div>
             </TabsContent>

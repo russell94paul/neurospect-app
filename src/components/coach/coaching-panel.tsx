@@ -15,7 +15,10 @@ import { StrategyCard } from './strategy-card';
 
 export function CoachingPanel() {
   const { data, isLoading } = useLatestCoachingEvent();
-  const createTrade = useCreateTrade();
+  const coachNavState = data?.status === 'complete'
+    ? { coachPrefilled: true, fieldNames: buildTradeCreateFromEvent(data).fieldNames }
+    : undefined;
+  const createTrade = useCreateTrade(coachNavState);
 
   if (isLoading && data === undefined) {
     return (
@@ -95,8 +98,9 @@ export function CoachingPanel() {
     ? (data.response_payload as unknown as Layer3Response)
     : null;
 
+  const coachResult = buildTradeCreateFromEvent(data);
   const handleStartTrade = () => {
-    createTrade.mutate(buildTradeCreateFromEvent(data));
+    createTrade.mutate(coachResult.create);
   };
 
   return (
