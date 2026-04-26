@@ -151,7 +151,7 @@ body = "{" +
 // alert.freq_once_per_bar limits to one fire per bar.
 // Flip Request coaching OFF after each use to re-arm.
 
-fire = requestCoaching and barstate.isrealtime
+fire = requestCoaching and not na(body)
 
 if fire
     alert(body, alert.freq_once_per_bar)
