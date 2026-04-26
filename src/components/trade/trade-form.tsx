@@ -47,6 +47,7 @@ const tradeFormSchema = z.object({
   narrative: z.string().nullable().optional(),
   entry_price: z.number().nullable().optional(),
   entry_time: z.string().nullable().optional(),
+  position_size: z.number().int().positive().nullable().optional(),
   stop_price: z.number().nullable().optional(),
   stop_logic: z.string().nullable().optional(),
   target_price: z.number().nullable().optional(),
@@ -93,6 +94,7 @@ function toFormValues(trade: Trade): TradeFormValues {
     entry_price: trade.entry_price != null ? Number(trade.entry_price) : null,
     // datetime-local requires "YYYY-MM-DDTHH:mm"
     entry_time: trade.entry_time ? trade.entry_time.slice(0, 16) : null,
+    position_size: trade.position_size,
     stop_price: trade.stop_price != null ? Number(trade.stop_price) : null,
     stop_logic: trade.stop_logic,
     target_price: trade.target_price != null ? Number(trade.target_price) : null,
@@ -174,6 +176,7 @@ export function TradeForm({ trade, onSuccess }: Props) {
           narrative: null,
           entry_price: null,
           entry_time: null,
+          position_size: null,
           stop_price: null,
           stop_logic: null,
           target_price: null,

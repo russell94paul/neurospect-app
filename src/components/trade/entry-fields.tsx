@@ -57,6 +57,30 @@ export function EntryFields({ control }: Props) {
         )}
       />
 
+      {/* Position Size */}
+      <FormField
+        control={control}
+        name="position_size"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Position Size (contracts)</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                step="1"
+                min="1"
+                placeholder="1"
+                value={field.value ?? ''}
+                onChange={(e) =>
+                  field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))
+                }
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
       {/* Stop Price */}
       <FormField
         control={control}

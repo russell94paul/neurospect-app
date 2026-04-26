@@ -72,6 +72,7 @@ export interface TradeCreate {
   narrative?: string | null;
   entry_price?: number | null;
   entry_time?: string | null;
+  position_size?: number | null;
   stop_price?: number | null;
   stop_logic?: string | null;
   target_price?: number | null;
@@ -97,6 +98,7 @@ export interface TradeUpdate {
   narrative?: string | null;
   entry_price?: number | null;
   entry_time?: string | null;
+  position_size?: number | null;
   stop_price?: number | null;
   stop_logic?: string | null;
   target_price?: number | null;
@@ -136,6 +138,7 @@ export interface Trade {
   narrative: string | null;
   entry_price: number | null;
   entry_time: string | null;
+  position_size: number | null;
   stop_price: number | null;
   stop_logic: string | null;
   target_price: number | null;
