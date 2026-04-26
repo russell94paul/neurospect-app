@@ -26,10 +26,11 @@ import type { TradeFormValues } from './trade-form';
 
 interface Props {
   control: Control<TradeFormValues>;
+  defaultAdvancedOpen?: boolean;
 }
 
-export function PreTradeFields({ control }: Props) {
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+export function PreTradeFields({ control, defaultAdvancedOpen = false }: Props) {
+  const [advancedOpen, setAdvancedOpen] = useState(defaultAdvancedOpen);
 
   return (
     <div className="flex flex-col gap-4">

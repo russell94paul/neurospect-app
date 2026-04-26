@@ -3,6 +3,8 @@ import { type Control, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { Trash2 } from 'lucide-react';
+import { extractPrefill } from '@/lib/coach-prefill';
+import { useLatestCoachingEvent } from '@/hooks/use-coaching';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
@@ -18,6 +20,7 @@ import { Form } from '@/components/ui/form';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useCreateTrade, useDeleteTrade, useUpdateTrade } from '@/hooks/use-trades';
 import type { Trade, TradeStatus } from '@/types/api';
+import { CoachPrefillBanner } from './coach-prefill-banner';
 import { EntryFields } from './entry-fields';
 import { PostTradeFields } from './post-trade-fields';
 import { PreTradeFields } from './pre-trade-fields';
@@ -195,6 +198,43 @@ export function TradeForm({ trade, onSuccess }: Props) {
   const updateTrade = useUpdateTrade(trade?.id ?? '');
   const deleteTrade = useDeleteTrade();
 
+  // Coach pre-fill (create mode only)
+  const [prefilledFieldNames, setPrefilledFieldNames] = useState<(keyof TradeFormValues)[]>([]);
+  const [expandAdvanced, setExpandAdvanced] = useState(false);
+  const coachQuery = useLatestCoachingEvent();
+
+  useEffect(() => {
+    if (isEdit) return;
+    const prefill = extractPrefill(coachQuery.data ?? null, new Date());
+    if (!prefill) return;
+    form.reset({ ...form.getValues(), ...prefill.values }, { keepDirtyValues: true });
+    setPrefilledFieldNames(prefill.fieldNames);
+    setExpandAdvanced(prefill.expandAdvanced);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coachQuery.data]);
+
+  // Subscribe to pre-fillable fields so dirtyFields updates trigger re-renders
+  form.watch(['instrument', 'session', 'htf_bias', 'htf_fvg_low', 'htf_fvg_high', 'news_flag']);
+  const anyPrefilledDirty = prefilledFieldNames.some((k) => !!form.formState.dirtyFields[k]);
+  const showBanner = !isEdit && prefilledFieldNames.length > 0 && !anyPrefilledDirty;
+
+  const handleClearPrefill = () => {
+    const baseDefaults: Partial<TradeFormValues> = {
+      instrument: 'NQ',
+      session: null,
+      htf_bias: null,
+      htf_fvg_low: null,
+      htf_fvg_high: null,
+      news_flag: false,
+    };
+    const resetFields = Object.fromEntries(
+      prefilledFieldNames.map((k) => [k, k in baseDefaults ? baseDefaults[k as keyof typeof baseDefaults] : null])
+    ) as Partial<TradeFormValues>;
+    form.reset({ ...form.getValues(), ...resetFields }, { keepDirtyValues: false });
+    setPrefilledFieldNames([]);
+    setExpandAdvanced(false);
+  };
+
   // R-multiple auto-calculation
   const [entryPrice, stopPrice, exitPrice] = form.watch(['entry_price', 'stop_price', 'exit_price']);
   useEffect(() => {
@@ -271,7 +311,14 @@ export function TradeForm({ trade, onSuccess }: Props) {
             </TabsList>
 
             <TabsContent value="pre-trade" className="pt-4">
-              <PreTradeFields control={ctrl} />
+              <div className="flex flex-col gap-4">
+                {showBanner && <CoachPrefillBanner onClear={handleClearPrefill} />}
+                <PreTradeFields
+                  control={ctrl}
+                  defaultAdvancedOpen={expandAdvanced}
+                  key={String(expandAdvanced)}
+                />
+              </div>
             </TabsContent>
 
             <TabsContent value="entry" className="pt-4">
