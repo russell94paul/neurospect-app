@@ -266,8 +266,8 @@ export function TradeForm({ trade, onSuccess }: Props) {
           >
             <TabsList className="w-full">
               <TabsTrigger value="pre-trade" className="flex-1">Pre-Trade</TabsTrigger>
-              <TabsTrigger value="entry" className="flex-1">Entry</TabsTrigger>
-              <TabsTrigger value="post-trade" className="flex-1">Post-Trade</TabsTrigger>
+              <TabsTrigger value="entry" className="flex-1" disabled={status === 'pre_trade'}>Entry</TabsTrigger>
+              <TabsTrigger value="post-trade" className="flex-1" disabled={status !== 'closed'}>Post-Trade</TabsTrigger>
             </TabsList>
 
             <TabsContent value="pre-trade" className="pt-4">
