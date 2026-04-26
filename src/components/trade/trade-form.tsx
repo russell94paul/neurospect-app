@@ -205,8 +205,10 @@ export function TradeForm({ trade, onSuccess }: Props) {
 
   useEffect(() => {
     if (isEdit) return;
+    console.log('[trade-form] coach data changed, status:', coachQuery.data?.status ?? 'undefined');
     const prefill = extractPrefill(coachQuery.data ?? null, new Date());
-    if (!prefill) return;
+    if (!prefill) { console.log('[trade-form] extractPrefill returned null'); return; }
+    console.log('[trade-form] pre-filling with:', prefill.values);
     form.reset({ ...form.getValues(), ...prefill.values }, { keepDirtyValues: true });
     setPrefilledFieldNames(prefill.fieldNames);
     setExpandAdvanced(prefill.expandAdvanced);

@@ -28,15 +28,16 @@ export interface PrefillResult {
 }
 
 export function extractPrefill(event: CoachingEvent | null, now: Date): PrefillResult | null {
-  if (!event) return null;
-  if (event.status !== 'complete') return null;
+  if (!event) { console.log('[coach-prefill] null event'); return null; }
+  if (event.status !== 'complete') { console.log('[coach-prefill] status not complete:', event.status); return null; }
 
   const currentSession = getCurrentEtSession(now);
-  if (currentSession === 'off') return null;
+  console.log('[coach-prefill] currentSession:', currentSession, '| payload.session:', event.request_payload.session, '| tod:', (() => { const p = new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(now); return parseInt(p.find(x=>x.type==='hour')!.value,10)*60+parseInt(p.find(x=>x.type==='minute')!.value,10); })());
+  if (currentSession === 'off') { console.log('[coach-prefill] current session is off'); return null; }
 
   const payload = event.request_payload;
   const payloadSession = typeof payload.session === 'string' ? payload.session : null;
-  if (payloadSession !== currentSession) return null;
+  if (payloadSession !== currentSession) { console.log('[coach-prefill] session mismatch — payload:', payloadSession, 'current:', currentSession); return null; }
 
   const values: Partial<TradeFormValues> = {};
   const fieldNames: (keyof TradeFormValues)[] = [];
