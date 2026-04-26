@@ -24,9 +24,9 @@ tvSecret = input.string("", "Webhook shared secret", group=grpSec,
      tooltip="Must match TRADINGVIEW_WEBHOOK_SECRET on the backend.")
 
 grpTrig = "Trigger"
-requestCoaching = input.bool(false, "Request coaching (rising edge fires alert)",
+requestCoaching = input.bool(false, "Request coaching",
      group=grpTrig,
-     tooltip="Flip OFF→ON to request one coaching call. Flip back to arm again.")
+     tooltip="Flip OFF→ON to fire one coaching request. Leave it ON after firing — it will NOT re-fire until you flip OFF then ON again.")
 
 grpFvg  = "HTF FVG"
 fvgOverride = input.bool(false, "Manual FVG override", group=grpFvg,
@@ -151,7 +151,9 @@ body = "{" +
 // alert.freq_once_per_bar limits to one fire per bar.
 // Flip Request coaching OFF after each use to re-arm.
 
-fire = requestCoaching and not na(body)
+// Rising edge: fires ONCE on the OFF→ON transition only.
+// Leaving the checkbox ON does nothing — flip OFF then ON to re-trigger.
+fire = requestCoaching and not requestCoaching[1]
 
 if fire
     alert(body, alert.freq_once_per_bar)
