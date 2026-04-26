@@ -13,10 +13,11 @@ const FIELD_LABELS: Partial<Record<keyof TradeFormValues, string>> = {
 
 interface Props {
   fieldNames: (keyof TradeFormValues)[];
+  onConfirm: () => void;
   onClear: () => void;
 }
 
-export function CoachPrefillBanner({ fieldNames, onClear }: Props) {
+export function CoachPrefillBanner({ fieldNames, onConfirm, onClear }: Props) {
   const labels = fieldNames.map((k) => FIELD_LABELS[k]).filter(Boolean).join(', ');
 
   return (
@@ -30,15 +31,26 @@ export function CoachPrefillBanner({ fieldNames, onClear }: Props) {
           )}
         </span>
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-auto shrink-0 px-2 py-0.5 text-amber-800 hover:bg-amber-100 hover:text-amber-900 dark:text-amber-300 dark:hover:bg-amber-900/40"
-        onClick={onClear}
-      >
-        Clear
-      </Button>
+      <div className="flex shrink-0 gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-auto px-2 py-0.5 text-amber-800 hover:bg-amber-100 hover:text-amber-900 dark:text-amber-300 dark:hover:bg-amber-900/40"
+          onClick={onConfirm}
+        >
+          Got it
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-auto px-2 py-0.5 text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40"
+          onClick={onClear}
+        >
+          Reset fields
+        </Button>
+      </div>
     </div>
   );
 }

@@ -233,11 +233,13 @@ export function TradeForm({ trade, onSuccess }: Props) {
   // Use a ref so the PreTradeFields key is stable in edit+coach mode (no remount needed)
   const preTradeKey = isEdit ? 'edit' : String(expandAdvanced);
 
+  const handleConfirmPrefill = () => {
+    setCoachNavDismissed(true);
+    setBannerActive(false);
+    setPrefilledFieldNames([]);
+  };
+
   const handleClearPrefill = () => {
-    if (showCoachNav) {
-      setCoachNavDismissed(true);
-      return;
-    }
     const baseDefaults: Partial<TradeFormValues> = {
       instrument: 'NQ',
       session: null,
@@ -246,10 +248,12 @@ export function TradeForm({ trade, onSuccess }: Props) {
       htf_fvg_high: null,
       news_flag: false,
     };
+    const fieldsToClear = showCoachNav ? (coachNav?.fieldNames ?? []) : prefilledFieldNames;
     const resetFields = Object.fromEntries(
-      prefilledFieldNames.map((k) => [k, k in baseDefaults ? baseDefaults[k as keyof typeof baseDefaults] : null])
+      fieldsToClear.map((k) => [k, k in baseDefaults ? baseDefaults[k as keyof typeof baseDefaults] : null])
     ) as Partial<TradeFormValues>;
     form.reset({ ...form.getValues(), ...resetFields }, { keepDirtyValues: false });
+    setCoachNavDismissed(true);
     setPrefilledFieldNames([]);
     setExpandAdvanced(false);
     setBannerActive(false);
@@ -336,6 +340,7 @@ export function TradeForm({ trade, onSuccess }: Props) {
                 {showBanner && (
                   <CoachPrefillBanner
                     fieldNames={activePrefillFieldNames}
+                    onConfirm={handleConfirmPrefill}
                     onClear={handleClearPrefill}
                   />
                 )}
