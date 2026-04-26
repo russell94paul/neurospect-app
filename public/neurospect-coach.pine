@@ -14,13 +14,13 @@
 //   neurospect-wiki/processes/distributed-workflow/active/ai-coach.md
 // =============================================================================
 
-//@version=5
+//@version=6
 indicator("Neurospect Coach", overlay=true)
 
 // ---- Inputs -----------------------------------------------------------------
 
 grpSec  = "Credentials"
-tvSecret = input.string("", "Webhook shared secret", group=grpSec, confirm=true,
+tvSecret = input.string("", "Webhook shared secret", group=grpSec,
      tooltip="Must match TRADINGVIEW_WEBHOOK_SECRET on the backend.")
 
 grpTrig = "Trigger"
@@ -76,13 +76,7 @@ priceVsMid = na(_midOpen) ? "na" : close < _midOpen ? "below" :
      close > _midOpen ? "above" : "at"
 
 // ---- 4H FVG auto-detection --------------------------------------------------
-// Three-candle FVG: bullish when candle[0].high < candle[2].low (gap left open
-// between them, referenced by the middle candle). On each new 4H bar close we
-// test the most recent completed trio and update the stored FVG.
-
 detect4hFvg() =>
-    // At confirmed bar close, compare candles indexed 1, 2, 3 (so the middle
-    // candle is the one that just finished two bars ago on the 4H TF).
     var float lastLow   = na
     var float lastHigh  = na
     var string lastBias = "neutral"
@@ -102,7 +96,7 @@ detect4hFvg() =>
 [autoFvgLow, autoFvgHigh, autoFvgBias] =
      request.security(syminfo.tickerid, "240", detect4hFvg(), lookahead=barmerge.lookahead_off)
 
-fvgBias = fvgOverride ? fvgBiasIn : autoFvgBias
+fvgBias = fvgOverride ? fvgBiasIn : (na(autoFvgBias) ? "neutral" : autoFvgBias)
 fvgLow  = fvgOverride ? fvgLowIn  : autoFvgLow
 fvgHigh = fvgOverride ? fvgHighIn : autoFvgHigh
 
@@ -152,11 +146,12 @@ body = "{" +
      q("fvg_source")            + ":" + q(fvgOverride ? "manual" : "auto") +
      "}"
 
-// ---- Rising-edge trigger + alert -------------------------------------------
+// ---- Trigger + alert --------------------------------------------------------
+// Fires on every real-time bar while Request coaching is ON.
+// alert.freq_once_per_bar limits to one fire per bar.
+// Flip Request coaching OFF after each use to re-arm.
 
-var bool prevRequest = false
-fire = requestCoaching and not prevRequest
-prevRequest := requestCoaching
+fire = requestCoaching and not na(body)
 
 if fire
     alert(body, alert.freq_once_per_bar)

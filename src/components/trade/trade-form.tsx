@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { type Control, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { Trash2 } from 'lucide-react';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Form } from '@/components/ui/form';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useCreateTrade, useDeleteTrade, useUpdateTrade } from '@/hooks/use-trades';
 import type { Trade, TradeStatus } from '@/types/api';
 import { EntryFields } from './entry-fields';
@@ -124,6 +124,12 @@ function buildPatch(
   return patch;
 }
 
+function defaultTabForStatus(status: TradeStatus): string {
+  if (status === 'active') return 'entry';
+  if (status === 'closed') return 'post-trade';
+  return 'pre-trade';
+}
+
 // ============================================================
 // Component
 // ============================================================
@@ -143,17 +149,14 @@ export function TradeForm({ trade, onSuccess }: Props) {
   const status = trade?.status ?? 'pre_trade';
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [preTradeSectionOpen, setPreTradeSectionOpen] = useState(true);
-  const [entrySectionOpen, setEntrySectionOpen] = useState(status !== 'pre_trade');
-  const [postTradeSectionOpen, setPostTradeSectionOpen] = useState(status === 'closed');
 
   const form = useForm<TradeFormValues>({
     resolver: zodResolver(tradeFormSchema),
     defaultValues: isEdit
       ? toFormValues(trade)
       : {
-          trade_date: '',
-          instrument: '',
+          trade_date: format(new Date(), 'yyyy-MM-dd'),
+          instrument: 'NQ',
           session: null,
           kill_zone: null,
           htf_bias: null,
@@ -256,74 +259,34 @@ export function TradeForm({ trade, onSuccess }: Props) {
             </div>
           )}
 
-          {/* Pre-Trade Section */}
-          <Collapsible open={preTradeSectionOpen} onOpenChange={setPreTradeSectionOpen}>
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 py-2 text-left text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
-              >
-                {preTradeSectionOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                Pre-Trade
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2">
+          {/* Tab navigation */}
+          <Tabs
+            defaultValue={isEdit ? defaultTabForStatus(status) : 'pre-trade'}
+            className="w-full"
+          >
+            <TabsList className="w-full">
+              <TabsTrigger value="pre-trade" className="flex-1">Pre-Trade</TabsTrigger>
+              <TabsTrigger value="entry" className="flex-1">Entry</TabsTrigger>
+              <TabsTrigger value="post-trade" className="flex-1">Post-Trade</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="pre-trade" className="pt-4">
               <PreTradeFields control={ctrl} />
-            </CollapsibleContent>
-          </Collapsible>
+            </TabsContent>
 
-          <Separator />
-
-          {/* Entry Section */}
-          <Collapsible open={entrySectionOpen} onOpenChange={setEntrySectionOpen}>
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 py-2 text-left text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
-              >
-                {entrySectionOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                Entry
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2">
+            <TabsContent value="entry" className="pt-4">
               <EntryFields control={ctrl} />
-            </CollapsibleContent>
-          </Collapsible>
+            </TabsContent>
 
-          <Separator />
-
-          {/* Post-Trade Section */}
-          <Collapsible open={postTradeSectionOpen} onOpenChange={setPostTradeSectionOpen}>
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 py-2 text-left text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
-              >
-                {postTradeSectionOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                Post-Trade
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2">
+            <TabsContent value="post-trade" className="pt-4">
               <PostTradeFields control={ctrl} />
-            </CollapsibleContent>
-          </Collapsible>
+            </TabsContent>
+          </Tabs>
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-2 pt-2">
             <Button type="submit" disabled={isBusy}>
-              {isBusy ? 'Saving…' : 'Save'}
+              {isBusy ? 'Saving…' : isEdit ? 'Save' : 'Save Trade'}
             </Button>
 
             {isEdit && status === 'pre_trade' && (
