@@ -26,7 +26,7 @@ tvSecret = input.string("", "Webhook shared secret", group=grpSec,
 grpTrig = "Trigger"
 requestCoaching = input.bool(false, "Request coaching",
      group=grpTrig,
-     tooltip="Flip OFF→ON to fire one coaching request. Leave it ON after firing — it will NOT re-fire until you flip OFF then ON again.")
+     tooltip="Flip ON to fire one coaching request. Flip back OFF before the next bar closes to re-arm.")
 
 grpFvg  = "HTF FVG"
 fvgOverride = input.bool(false, "Manual FVG override", group=grpFvg,
@@ -151,9 +151,7 @@ body = "{" +
 // alert.freq_once_per_bar limits to one fire per bar.
 // Flip Request coaching OFF after each use to re-arm.
 
-// Rising edge: fires ONCE on the OFF→ON transition only.
-// Leaving the checkbox ON does nothing — flip OFF then ON to re-trigger.
-fire = requestCoaching and not requestCoaching[1]
+fire = requestCoaching and barstate.isrealtime
 
 if fire
     alert(body, alert.freq_once_per_bar)
