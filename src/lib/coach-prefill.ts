@@ -1,4 +1,5 @@
-import type { CoachingEvent } from '@/types/api';
+import { format } from 'date-fns';
+import type { CoachingEvent, TradeCreate } from '@/types/api';
 import type { TradeFormValues } from '@/components/trade/trade-form';
 
 type EtSession = 'london' | 'ny_am' | 'ny_pm' | 'off';
@@ -28,16 +29,15 @@ export interface PrefillResult {
 }
 
 export function extractPrefill(event: CoachingEvent | null, now: Date): PrefillResult | null {
-  if (!event) { console.log('[coach-prefill] null event'); return null; }
-  if (event.status !== 'complete') { console.log('[coach-prefill] status not complete:', event.status); return null; }
+  if (!event) return null;
+  if (event.status !== 'complete') return null;
 
   const currentSession = getCurrentEtSession(now);
-  console.log('[coach-prefill] currentSession:', currentSession, '| payload.session:', event.request_payload.session, '| tod:', (() => { const p = new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(now); return parseInt(p.find(x=>x.type==='hour')!.value,10)*60+parseInt(p.find(x=>x.type==='minute')!.value,10); })());
-  if (currentSession === 'off') { console.log('[coach-prefill] current session is off'); return null; }
+  if (currentSession === 'off') return null;
 
   const payload = event.request_payload;
   const payloadSession = typeof payload.session === 'string' ? payload.session : null;
-  if (payloadSession !== currentSession) { console.log('[coach-prefill] session mismatch — payload:', payloadSession, 'current:', currentSession); return null; }
+  if (payloadSession !== currentSession) return null;
 
   const values: Partial<TradeFormValues> = {};
   const fieldNames: (keyof TradeFormValues)[] = [];
@@ -78,4 +78,49 @@ export function extractPrefill(event: CoachingEvent | null, now: Date): PrefillR
   const expandAdvanced = 'htf_fvg_low' in values || 'htf_fvg_high' in values;
 
   return { values, expandAdvanced, fieldNames };
+}
+
+/** Builds a TradeCreate body from a completed coach event's request_payload.
+ *  No session-match check — caller has explicitly chosen to start a trade. */
+export function buildTradeCreateFromEvent(event: CoachingEvent): TradeCreate {
+  const payload = event.request_payload;
+
+  const instrument =
+    typeof payload.instrument === 'string' && payload.instrument
+      ? payload.instrument
+      : 'NQ';
+
+  const create: TradeCreate = {
+    trade_date: format(new Date(), 'yyyy-MM-dd'),
+    instrument,
+  };
+
+  const validSessions = ['asia', 'london', 'ny_am', 'ny_pm'] as const;
+  if (
+    typeof payload.session === 'string' &&
+    validSessions.includes(payload.session as (typeof validSessions)[number])
+  ) {
+    create.session = payload.session as TradeCreate['session'];
+  }
+
+  const validBiases = ['bullish', 'bearish', 'neutral'] as const;
+  if (
+    typeof payload.htf_fvg_bias === 'string' &&
+    validBiases.includes(payload.htf_fvg_bias as (typeof validBiases)[number])
+  ) {
+    create.htf_bias = payload.htf_fvg_bias as TradeCreate['htf_bias'];
+  }
+
+  if (Array.isArray(payload.htf_fvg_range) && payload.htf_fvg_range.length >= 2) {
+    const low = payload.htf_fvg_range[0];
+    const high = payload.htf_fvg_range[1];
+    if (typeof low === 'number') create.htf_fvg_low = low;
+    if (typeof high === 'number') create.htf_fvg_high = high;
+  }
+
+  if (typeof payload.news_flag === 'boolean') {
+    create.news_flag = payload.news_flag;
+  }
+
+  return create;
 }

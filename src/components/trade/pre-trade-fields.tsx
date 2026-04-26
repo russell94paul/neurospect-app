@@ -27,10 +27,15 @@ import type { TradeFormValues } from './trade-form';
 interface Props {
   control: Control<TradeFormValues>;
   defaultAdvancedOpen?: boolean;
+  prefilledFields?: Set<keyof TradeFormValues>;
 }
 
-export function PreTradeFields({ control, defaultAdvancedOpen = false }: Props) {
+export function PreTradeFields({ control, defaultAdvancedOpen = false, prefilledFields }: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(defaultAdvancedOpen);
+  const hl = (...keys: (keyof TradeFormValues)[]) =>
+    keys.some((k) => prefilledFields?.has(k))
+      ? 'ring-1 ring-amber-400 rounded-md dark:ring-amber-500'
+      : '';
 
   return (
     <div className="flex flex-col gap-4">
@@ -77,7 +82,7 @@ export function PreTradeFields({ control, defaultAdvancedOpen = false }: Props) 
           control={control}
           name="instrument"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className={hl('instrument')}>
               <FormLabel>Instrument *</FormLabel>
               <FormControl>
                 <Input {...field} list="instrument-suggestions" placeholder="NQ, ES, YM…" />
@@ -97,7 +102,7 @@ export function PreTradeFields({ control, defaultAdvancedOpen = false }: Props) 
           control={control}
           name="session"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className={hl('session')}>
               <FormLabel>Session</FormLabel>
               <Select
                 onValueChange={(v) => field.onChange(v === '_none' ? null : v)}
@@ -157,7 +162,7 @@ export function PreTradeFields({ control, defaultAdvancedOpen = false }: Props) 
           control={control}
           name="htf_bias"
           render={({ field }) => (
-            <FormItem className="sm:col-span-2">
+            <FormItem className={cn('sm:col-span-2', hl('htf_bias'))}>
               <FormLabel>HTF Bias</FormLabel>
               <FormControl>
                 <RadioGroup
@@ -251,7 +256,7 @@ export function PreTradeFields({ control, defaultAdvancedOpen = false }: Props) 
               control={control}
               name="htf_fvg_low"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={hl('htf_fvg_low')}>
                   <FormLabel>HTF FVG Low</FormLabel>
                   <FormControl>
                     <Input
@@ -274,7 +279,7 @@ export function PreTradeFields({ control, defaultAdvancedOpen = false }: Props) 
               control={control}
               name="htf_fvg_high"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={hl('htf_fvg_high')}>
                   <FormLabel>HTF FVG High</FormLabel>
                   <FormControl>
                     <Input
@@ -369,7 +374,7 @@ export function PreTradeFields({ control, defaultAdvancedOpen = false }: Props) 
               control={control}
               name="news_flag"
               render={({ field }) => (
-                <FormItem className="flex items-center gap-2 space-y-0 pt-6">
+                <FormItem className={cn('flex items-center gap-2 space-y-0 pt-6', hl('news_flag'))}>
                   <FormControl>
                     <Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} />
                   </FormControl>

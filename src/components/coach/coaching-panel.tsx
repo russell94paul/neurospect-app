@@ -1,7 +1,11 @@
+import { PlusCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLatestCoachingEvent } from '@/hooks/use-coaching';
+import { useCreateTrade } from '@/hooks/use-trades';
+import { buildTradeCreateFromEvent } from '@/lib/coach-prefill';
 import type { Layer3Response } from '@/types/api';
 import { AlertsBanner } from './alerts-banner';
 import { BiasBadge } from './bias-badge';
@@ -11,6 +15,7 @@ import { StrategyCard } from './strategy-card';
 
 export function CoachingPanel() {
   const { data, isLoading } = useLatestCoachingEvent();
+  const createTrade = useCreateTrade();
 
   if (isLoading && data === undefined) {
     return (
@@ -90,11 +95,25 @@ export function CoachingPanel() {
     ? (data.response_payload as unknown as Layer3Response)
     : null;
 
+  const handleStartTrade = () => {
+    createTrade.mutate(buildTradeCreateFromEvent(data));
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <EventMeta event={data} />
         {payload && <BiasBadge bias={payload.bias} />}
+        <Button
+          size="sm"
+          variant="outline"
+          className="ml-auto gap-1.5"
+          onClick={handleStartTrade}
+          disabled={createTrade.isPending}
+        >
+          <PlusCircle className="h-4 w-4" />
+          {createTrade.isPending ? 'Creating…' : 'Start Trade from Signal'}
+        </Button>
       </div>
 
       {payload && (

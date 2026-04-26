@@ -201,24 +201,21 @@ export function TradeForm({ trade, onSuccess }: Props) {
   // Coach pre-fill (create mode only)
   const [prefilledFieldNames, setPrefilledFieldNames] = useState<(keyof TradeFormValues)[]>([]);
   const [expandAdvanced, setExpandAdvanced] = useState(false);
+  const [bannerActive, setBannerActive] = useState(false);
   const coachQuery = useLatestCoachingEvent();
 
   useEffect(() => {
     if (isEdit) return;
-    console.log('[trade-form] coach data changed, status:', coachQuery.data?.status ?? 'undefined');
     const prefill = extractPrefill(coachQuery.data ?? null, new Date());
-    if (!prefill) { console.log('[trade-form] extractPrefill returned null'); return; }
-    console.log('[trade-form] pre-filling with:', prefill.values);
+    if (!prefill) return;
     form.reset({ ...form.getValues(), ...prefill.values }, { keepDirtyValues: true });
     setPrefilledFieldNames(prefill.fieldNames);
     setExpandAdvanced(prefill.expandAdvanced);
+    setBannerActive(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coachQuery.data]);
 
-  // Subscribe to pre-fillable fields so dirtyFields updates trigger re-renders
-  form.watch(['instrument', 'session', 'htf_bias', 'htf_fvg_low', 'htf_fvg_high', 'news_flag']);
-  const anyPrefilledDirty = prefilledFieldNames.some((k) => !!form.formState.dirtyFields[k]);
-  const showBanner = !isEdit && prefilledFieldNames.length > 0 && !anyPrefilledDirty;
+  const showBanner = bannerActive && !isEdit;
 
   const handleClearPrefill = () => {
     const baseDefaults: Partial<TradeFormValues> = {
@@ -235,6 +232,7 @@ export function TradeForm({ trade, onSuccess }: Props) {
     form.reset({ ...form.getValues(), ...resetFields }, { keepDirtyValues: false });
     setPrefilledFieldNames([]);
     setExpandAdvanced(false);
+    setBannerActive(false);
   };
 
   // R-multiple auto-calculation
@@ -314,10 +312,16 @@ export function TradeForm({ trade, onSuccess }: Props) {
 
             <TabsContent value="pre-trade" className="pt-4">
               <div className="flex flex-col gap-4">
-                {showBanner && <CoachPrefillBanner onClear={handleClearPrefill} />}
+                {showBanner && (
+                  <CoachPrefillBanner
+                    fieldNames={prefilledFieldNames}
+                    onClear={handleClearPrefill}
+                  />
+                )}
                 <PreTradeFields
                   control={ctrl}
                   defaultAdvancedOpen={expandAdvanced}
+                  prefilledFields={showBanner ? new Set(prefilledFieldNames) : undefined}
                   key={String(expandAdvanced)}
                 />
               </div>
