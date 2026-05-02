@@ -9,10 +9,14 @@ import { Label } from '@/components/ui/label';
 import { GRADE_OPTIONS, OUTCOME_OPTIONS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { MistakeTagInput } from './mistake-tag-input';
+import { TradovateFillButton } from './tradovate-fill-button';
+import type { Trade } from '@/types/api';
 import type { TradeFormValues } from './trade-form';
 
 interface Props {
   control: Control<TradeFormValues>;
+  trade?: Trade;
+  onFillApplied?: (updated: Trade) => void;
 }
 
 const OUTCOME_COLORS: Record<string, string> = {
@@ -21,9 +25,16 @@ const OUTCOME_COLORS: Record<string, string> = {
   breakeven: 'border-gray-400 text-gray-600 dark:text-gray-400',
 };
 
-export function PostTradeFields({ control }: Props) {
+export function PostTradeFields({ control, trade, onFillApplied }: Props) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
+      {/* Tradovate fetch row — edit mode only */}
+      {trade && onFillApplied && (
+        <div className="sm:col-span-2 flex justify-end">
+          <TradovateFillButton role="exit" trade={trade} onFillApplied={onFillApplied} />
+        </div>
+      )}
+
       {/* Exit Price */}
       <FormField
         control={control}

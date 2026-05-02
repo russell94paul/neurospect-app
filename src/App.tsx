@@ -9,6 +9,7 @@ import { TradesPage } from '@/pages/trades';
 import { DashboardPage } from '@/pages/dashboard';
 import { CoachPage } from '@/pages/coach';
 import { CoachSetupPage } from '@/pages/coach-setup';
+import { BrokerSettingsPage } from '@/pages/settings-broker';
 
 // ============================================================
 // Protected layout — redirects to /login if not authenticated
@@ -75,6 +76,14 @@ const router = createBrowserRouter([
       {
         path: '/coach/setup',
         element: <CoachSetupPage />,
+      },
+      {
+        path: '/settings',
+        element: <Navigate to="/settings/broker" replace />,
+      },
+      {
+        path: '/settings/broker',
+        element: <BrokerSettingsPage />,
       },
     ],
   },

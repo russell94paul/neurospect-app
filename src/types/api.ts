@@ -120,6 +120,33 @@ export interface TradeUpdate {
   status?: TradeStatus | null;
 }
 
+// ============================================================
+// Broker / Tradovate types (mirror backend app/schemas/broker.py)
+// ============================================================
+
+export interface BrokerCredentials {
+  environment: 'demo' | 'live';
+  is_connected: boolean;
+  last_auth_at: string | null;
+  username_masked: string;
+}
+
+export interface BracketInfo {
+  stop_price: number | null;
+  target_price: number | null;
+}
+
+export interface FillDTO {
+  tradovate_fill_id: number;
+  instrument: string;
+  side: string;
+  qty: number;
+  price: number;
+  timestamp: string;
+  order_id: number;
+  bracket: BracketInfo | null;
+}
+
 export interface Trade {
   id: string;
   user_id: string;
@@ -157,6 +184,8 @@ export interface Trade {
   mistake_tags: string[] | null;
   quality_grade: GradeType | null;
   post_trade_notes: string | null;
+  tradovate_fill_id_entry: number | null;
+  tradovate_fill_id_exit: number | null;
   status: TradeStatus;
   created_at: string;
   updated_at: string;

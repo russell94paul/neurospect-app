@@ -298,6 +298,19 @@ export function TradeForm({ trade, onSuccess }: Props) {
     }
   };
 
+  const handleEntryFillApplied = (updated: Trade) => {
+    form.setValue('entry_price', updated.entry_price != null ? Number(updated.entry_price) : null, { shouldDirty: true });
+    form.setValue('entry_time', updated.entry_time ? updated.entry_time.slice(0, 16) : null, { shouldDirty: true });
+    form.setValue('position_size', updated.position_size, { shouldDirty: true });
+    if (updated.stop_price != null) form.setValue('stop_price', Number(updated.stop_price), { shouldDirty: true });
+    if (updated.target_price != null) form.setValue('target_price', Number(updated.target_price), { shouldDirty: true });
+  };
+
+  const handleExitFillApplied = (updated: Trade) => {
+    form.setValue('exit_price', updated.exit_price != null ? Number(updated.exit_price) : null, { shouldDirty: true });
+    form.setValue('exit_time', updated.exit_time ? updated.exit_time.slice(0, 16) : null, { shouldDirty: true });
+  };
+
   const isBusy = createTrade.isPending || updateTrade.isPending || deleteTrade.isPending;
 
   // Cast control — required due to RHF + Zod resolver generic parameter constraints
@@ -357,11 +370,19 @@ export function TradeForm({ trade, onSuccess }: Props) {
             </TabsContent>
 
             <TabsContent value="entry" className="pt-4">
-              <EntryFields control={ctrl} />
+              <EntryFields
+                control={ctrl}
+                trade={isEdit ? trade : undefined}
+                onFillApplied={isEdit ? handleEntryFillApplied : undefined}
+              />
             </TabsContent>
 
             <TabsContent value="post-trade" className="pt-4">
-              <PostTradeFields control={ctrl} />
+              <PostTradeFields
+                control={ctrl}
+                trade={isEdit ? trade : undefined}
+                onFillApplied={isEdit ? handleExitFillApplied : undefined}
+              />
             </TabsContent>
           </Tabs>
 

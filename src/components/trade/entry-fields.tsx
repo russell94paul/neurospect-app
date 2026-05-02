@@ -6,15 +6,25 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { DISPLACEMENT_OPTIONS, PDA_OPTIONS } from '@/lib/constants';
+import { TradovateFillButton } from './tradovate-fill-button';
+import type { Trade } from '@/types/api';
 import type { TradeFormValues } from './trade-form';
 
 interface Props {
   control: Control<TradeFormValues>;
+  trade?: Trade;
+  onFillApplied?: (updated: Trade) => void;
 }
 
-export function EntryFields({ control }: Props) {
+export function EntryFields({ control, trade, onFillApplied }: Props) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
+      {/* Tradovate fetch row — edit mode only */}
+      {trade && onFillApplied && (
+        <div className="sm:col-span-2 flex justify-end">
+          <TradovateFillButton role="entry" trade={trade} onFillApplied={onFillApplied} />
+        </div>
+      )}
       {/* Entry Price */}
       <FormField
         control={control}
